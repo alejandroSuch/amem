@@ -4,6 +4,8 @@ import { MemoryService } from "./memory/service.js";
 import type { MemoryScope, MemoryMeta } from "./memory/types.js";
 import { log } from "./utils/logger.js";
 
+const projectDirSchema = z.string().optional().describe("Project directory to resolve scope (default: server's cwd)");
+
 export function createServer(): McpServer {
   const service = new MemoryService();
 
@@ -19,11 +21,12 @@ export function createServer(): McpServer {
       query: z.string().describe("Search query"),
       scope: z.enum(["global", "project"]).optional().describe("Scope to search (default: both)"),
       type: z.enum(["user", "feedback", "project", "reference"]).optional().describe("Filter by type"),
-      tags: z.array(z.string()).optional().describe("Filter by tags (OR match)"),
+      tags: z.array(z.string()).optional().describe("Filter by tags (OR match). Standard: workflow, tooling, testing, style, architecture, security, performance, dependencies. Custom: custom:<name>"),
       limit: z.number().optional().describe("Max results (default: 10)"),
+      project_dir: projectDirSchema,
     },
     async (params) => {
-      const results = await service.search(params);
+      const results = await service.search({ ...params, projectDir: params.project_dir });
       const text = JSON.stringify(results, null, 2);
       log("memory_search", params, results);
       return { content: [{ type: "text" as const, text }] };
@@ -34,18 +37,19 @@ export function createServer(): McpServer {
     "memory_add",
     "Create a new memory. Returns the created memory with its ID.",
     {
-      content: z.string().describe("Memory content (markdown)"),
+      content: z.string().describe("Memory content in markdown prose (not YAML or JSON — use headings, lists, and inline code for structure)"),
       name: z.string().describe("Memory name"),
       description: z.string().describe("Short description for search relevance"),
       type: z.enum(["user", "feedback", "project", "reference"]).describe("Memory type"),
       scope: z.enum(["global", "project"]).describe("Storage scope"),
       keywords: z.array(z.string()).optional().describe("Search keywords"),
-      tags: z.array(z.string()).optional().describe("Categorization tags"),
+      tags: z.array(z.string()).optional().describe("Tags: workflow, tooling, testing, style, architecture, security, performance, dependencies. For others use custom:<name>"),
       context: z.string().optional().describe("One-line context summary"),
       links: z.array(z.string()).optional().describe("IDs of related memories"),
+      project_dir: projectDirSchema,
     },
     async (params) => {
-      const memory = await service.add(params);
+      const memory = await service.add({ ...params, projectDir: params.project_dir });
       const text = JSON.stringify(memory, null, 2);
       log("memory_add", params, memory);
       return { content: [{ type: "text" as const, text }] };
@@ -62,13 +66,14 @@ export function createServer(): McpServer {
       description: z.string().optional(),
       type: z.enum(["user", "feedback", "project", "reference"]).optional(),
       keywords: z.array(z.string()).optional(),
-      tags: z.array(z.string()).optional(),
+      tags: z.array(z.string()).optional().describe("Tags: workflow, tooling, testing, style, architecture, security, performance, dependencies. For others use custom:<name>"),
       context: z.string().optional(),
       links: z.array(z.string()).optional(),
       content: z.string().optional(),
+      project_dir: projectDirSchema,
     },
     async (params) => {
-      const memory = await service.update(params);
+      const memory = await service.update({ ...params, projectDir: params.project_dir });
       log("memory_update", params, memory ?? "not_found");
       if (!memory) {
         return { content: [{ type: "text" as const, text: "Memory not found" }], isError: true };
@@ -83,10 +88,11 @@ export function createServer(): McpServer {
     {
       id: z.string().describe("Memory ID"),
       scope: z.enum(["global", "project"]).describe("Scope where memory lives"),
+      project_dir: projectDirSchema,
     },
-    async ({ id, scope }) => {
-      const ok = await service.delete(id, scope);
-      log("memory_delete", { id, scope }, ok ? "deleted" : "not_found");
+    async ({ id, scope, project_dir }) => {
+      const ok = await service.delete(id, scope, project_dir);
+      log("memory_delete", { id, scope, project_dir }, ok ? "deleted" : "not_found");
       return {
         content: [{ type: "text" as const, text: ok ? "Deleted" : "Not found" }],
         isError: !ok,
@@ -100,10 +106,11 @@ export function createServer(): McpServer {
     {
       id: z.string().describe("Memory ID"),
       scope: z.enum(["global", "project"]).describe("Scope where memory lives"),
+      project_dir: projectDirSchema,
     },
-    async ({ id, scope }) => {
-      const result = await service.links(id, scope);
-      log("memory_links", { id, scope }, result ?? "not_found");
+    async ({ id, scope, project_dir }) => {
+      const result = await service.links(id, scope, project_dir);
+      log("memory_links", { id, scope, project_dir }, result ?? "not_found");
       if (!result) {
         return { content: [{ type: "text" as const, text: "Memory not found" }], isError: true };
       }
@@ -117,9 +124,10 @@ export function createServer(): McpServer {
     {
       scope: z.enum(["global", "project"]).optional().describe("Scope to list (default: both)"),
       type: z.enum(["user", "feedback", "project", "reference"]).optional().describe("Filter by type"),
+      project_dir: projectDirSchema,
     },
     async (params) => {
-      const results = await service.list(params);
+      const results = await service.list({ ...params, projectDir: params.project_dir });
       log("memory_list", params, results);
       return { content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }] };
     }

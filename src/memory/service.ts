@@ -2,6 +2,7 @@ import { homedir } from "os";
 import { execSync } from "child_process";
 import { join } from "path";
 import { v4 as uuid } from "uuid";
+import { validateTags } from "./types.js";
 import type { Memory, MemoryMeta, MemoryScope } from "./types.js";
 import { MemoryStore } from "./store.js";
 import { SearchEngine } from "./search.js";
@@ -32,20 +33,24 @@ function memoryDir(scope: MemoryScope, projectId: string): string {
 export class MemoryService {
   private stores = new Map<string, MemoryStore>();
   private engines = new Map<string, SearchEngine>();
-  private projectId: string;
+  private defaultProjectId: string;
 
   constructor(cwd: string = process.cwd()) {
-    this.projectId = resolveProjectId(cwd);
+    this.defaultProjectId = resolveProjectId(cwd);
   }
 
-  private storeKey(scope: MemoryScope): string {
-    return scope === "global" ? "global" : `project:${this.projectId}`;
+  private resolveProject(projectDir?: string): string {
+    return projectDir ? resolveProjectId(projectDir) : this.defaultProjectId;
   }
 
-  private async getStore(scope: MemoryScope): Promise<MemoryStore> {
-    const key = this.storeKey(scope);
+  private storeKey(scope: MemoryScope, projectId: string): string {
+    return scope === "global" ? "global" : `project:${projectId}`;
+  }
+
+  private async getStore(scope: MemoryScope, projectId: string): Promise<MemoryStore> {
+    const key = this.storeKey(scope, projectId);
     if (!this.stores.has(key)) {
-      const dir = memoryDir(scope, this.projectId);
+      const dir = memoryDir(scope, projectId);
       const store = new MemoryStore(dir);
       await store.init();
       this.stores.set(key, store);
@@ -53,10 +58,10 @@ export class MemoryService {
     return this.stores.get(key)!;
   }
 
-  private async getEngine(scope: MemoryScope): Promise<SearchEngine> {
-    const key = this.storeKey(scope);
+  private async getEngine(scope: MemoryScope, projectId: string): Promise<SearchEngine> {
+    const key = this.storeKey(scope, projectId);
     if (!this.engines.has(key)) {
-      const store = await this.getStore(scope);
+      const store = await this.getStore(scope, projectId);
       const engine = new SearchEngine();
       engine.rebuild(await store.loadAll());
       this.engines.set(key, engine);
@@ -64,9 +69,9 @@ export class MemoryService {
     return this.engines.get(key)!;
   }
 
-  private async rebuildIndex(scope: MemoryScope): Promise<void> {
-    const key = this.storeKey(scope);
-    const store = await this.getStore(scope);
+  private async rebuildIndex(scope: MemoryScope, projectId: string): Promise<void> {
+    const key = this.storeKey(scope, projectId);
+    const store = await this.getStore(scope, projectId);
     const engine = new SearchEngine();
     engine.rebuild(await store.loadAll());
     this.engines.set(key, engine);
@@ -82,7 +87,17 @@ export class MemoryService {
     tags?: string[];
     context?: string;
     links?: string[];
+    projectDir?: string;
   }): Promise<Memory> {
+    if (params.tags?.length) {
+      const result = validateTags(params.tags);
+      if (!result.valid) {
+        throw new Error(
+          `Invalid tags: ${result.invalid.join(", ")}. Use one of: workflow, tooling, testing, style, architecture, security, performance, dependencies — or prefix with "custom:" (e.g., custom:infra).`
+        );
+      }
+    }
+    const projectId = this.resolveProject(params.projectDir);
     const now = new Date().toISOString().slice(0, 10);
     const id = `${params.type}_${uuid().slice(0, 8)}`;
     const memory: Memory = {
@@ -100,9 +115,9 @@ export class MemoryService {
       },
       content: params.content,
     };
-    const store = await this.getStore(params.scope);
+    const store = await this.getStore(params.scope, projectId);
     await store.save(memory);
-    await this.rebuildIndex(params.scope);
+    await this.rebuildIndex(params.scope, projectId);
     return memory;
   }
 
@@ -117,11 +132,21 @@ export class MemoryService {
     context?: string;
     links?: string[];
     content?: string;
+    projectDir?: string;
   }): Promise<Memory | null> {
-    const store = await this.getStore(params.scope);
+    const projectId = this.resolveProject(params.projectDir);
+    const store = await this.getStore(params.scope, projectId);
     const existing = await store.load(params.id);
     if (!existing) return null;
 
+    if (params.tags?.length) {
+      const result = validateTags(params.tags);
+      if (!result.valid) {
+        throw new Error(
+          `Invalid tags: ${result.invalid.join(", ")}. Use one of: workflow, tooling, testing, style, architecture, security, performance, dependencies — or prefix with "custom:" (e.g., custom:infra).`
+        );
+      }
+    }
     if (params.name !== undefined) existing.meta.name = params.name;
     if (params.description !== undefined) existing.meta.description = params.description;
     if (params.type !== undefined) existing.meta.type = params.type;
@@ -133,14 +158,15 @@ export class MemoryService {
     existing.meta.updated = new Date().toISOString().slice(0, 10);
 
     await store.save(existing);
-    await this.rebuildIndex(params.scope);
+    await this.rebuildIndex(params.scope, projectId);
     return existing;
   }
 
-  async delete(id: string, scope: MemoryScope): Promise<boolean> {
-    const store = await this.getStore(scope);
+  async delete(id: string, scope: MemoryScope, projectDir?: string): Promise<boolean> {
+    const projectId = this.resolveProject(projectDir);
+    const store = await this.getStore(scope, projectId);
     const ok = await store.remove(id);
-    if (ok) await this.rebuildIndex(scope);
+    if (ok) await this.rebuildIndex(scope, projectId);
     return ok;
   }
 
@@ -150,12 +176,14 @@ export class MemoryService {
     type?: MemoryMeta["type"];
     tags?: string[];
     limit?: number;
+    projectDir?: string;
   }): Promise<Memory[]> {
+    const projectId = this.resolveProject(params.projectDir);
     const scopes: MemoryScope[] = params.scope ? [params.scope] : ["global", "project"];
     let results: Memory[] = [];
 
     for (const scope of scopes) {
-      const engine = await this.getEngine(scope);
+      const engine = await this.getEngine(scope, projectId);
       results.push(...engine.search(params.query, params.limit || 10));
     }
 
@@ -171,8 +199,9 @@ export class MemoryService {
     return results.slice(0, params.limit || 10);
   }
 
-  async links(id: string, scope: MemoryScope): Promise<{ memory: Memory; linked: Memory[] } | null> {
-    const store = await this.getStore(scope);
+  async links(id: string, scope: MemoryScope, projectDir?: string): Promise<{ memory: Memory; linked: Memory[] } | null> {
+    const projectId = this.resolveProject(projectDir);
+    const store = await this.getStore(scope, projectId);
     const memory = await store.load(id);
     if (!memory) return null;
 
@@ -187,12 +216,14 @@ export class MemoryService {
   async list(params: {
     scope?: MemoryScope;
     type?: MemoryMeta["type"];
+    projectDir?: string;
   }): Promise<Array<{ id: string; meta: MemoryMeta }>> {
+    const projectId = this.resolveProject(params.projectDir);
     const scopes: MemoryScope[] = params.scope ? [params.scope] : ["global", "project"];
     let results: Array<{ id: string; meta: MemoryMeta }> = [];
 
     for (const scope of scopes) {
-      const store = await this.getStore(scope);
+      const store = await this.getStore(scope, projectId);
       const memories = await store.loadAll();
       results.push(...memories.map((m) => ({ id: m.id, meta: m.meta })));
     }
