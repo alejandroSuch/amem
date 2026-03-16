@@ -19,14 +19,12 @@ function resolveProjectId(cwd: string): string {
   }
 }
 
+function baseDir(): string {
+  return process.env.AMEM_BASE_DIR || join(homedir(), ".claude");
+}
+
 function memoryDir(scope: MemoryScope, projectId: string): string {
-  if (scope === "global" && process.env.AMEM_GLOBAL_DIR) {
-    return process.env.AMEM_GLOBAL_DIR;
-  }
-  if (scope === "project" && process.env.AMEM_PROJECT_DIR) {
-    return process.env.AMEM_PROJECT_DIR;
-  }
-  const base = join(homedir(), ".claude");
+  const base = baseDir();
   if (scope === "global") return join(base, "memory");
   return join(base, "projects", projectId, "memory");
 }

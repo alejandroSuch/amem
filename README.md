@@ -58,10 +58,9 @@ amem is a standard MCP server over stdio. Use whatever configuration your host r
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AMEM_GLOBAL_DIR` | `~/.claude/memory` | Override global memory directory |
-| `AMEM_PROJECT_DIR` | `~/.claude/projects/<id>/memory` | Override project memory directory |
+| `AMEM_BASE_DIR` | `~/.claude` | Base directory for all memory storage |
 
-No environment variables are required — defaults match Claude Code's conventions.
+Global memories go to `$AMEM_BASE_DIR/memory/`, project memories to `$AMEM_BASE_DIR/projects/<id>/memory/`. No environment variables are required — defaults match Claude Code's conventions.
 
 ## Memory format
 
