@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "amem": {
-      "command": "/Users/alejandro/projects/amem/amem"
+      "command": "/Users/alejandro/projects/amem/dist/amem"
     }
   }
 }

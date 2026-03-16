@@ -13,7 +13,7 @@ bun install
 bun run build
 ```
 
-This produces a standalone `amem` binary in the project root — no runtime dependencies needed.
+This produces a standalone binary at `dist/amem` — no runtime dependencies needed.
 
 ## Configure
 
@@ -25,7 +25,7 @@ Add to `~/.claude/settings.json` for global use:
 {
   "mcpServers": {
     "amem": {
-      "command": "/absolute/path/to/amem/amem"
+      "command": "/absolute/path/to/amem/dist/amem"
     }
   }
 }
@@ -37,7 +37,7 @@ Or add a `.mcp.json` in your project root for per-project use:
 {
   "mcpServers": {
     "amem": {
-      "command": "/absolute/path/to/amem/amem"
+      "command": "/absolute/path/to/amem/dist/amem"
     }
   }
 }
@@ -49,7 +49,7 @@ amem is a standard MCP server over stdio. Use whatever configuration your host r
 
 ```json
 {
-  "command": "/absolute/path/to/amem/amem",
+  "command": "/absolute/path/to/amem/dist/amem",
   "transport": "stdio"
 }
 ```
@@ -180,7 +180,7 @@ Storage paths:
 
 ```bash
 bun run dev        # Run directly (Bun handles TypeScript natively)
-bun run build      # Compile standalone binary → ./amem
+bun run build      # Compile standalone binary → dist/amem
 ```
 
 ## Requirements

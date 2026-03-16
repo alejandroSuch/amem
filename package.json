@@ -12,8 +12,8 @@
   },
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build --compile src/index.ts --outfile amem",
-    "build:install": "bun run build && echo 'Binary ready at ./amem'"
+    "build": "bun build --compile src/index.ts --outfile dist/amem",
+    "build:install": "bun run build && echo 'Binary ready at ./dist/amem'"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
