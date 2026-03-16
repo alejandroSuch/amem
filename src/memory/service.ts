@@ -178,6 +178,14 @@ export class MemoryService {
     limit?: number;
     projectDir?: string;
   }): Promise<Memory[]> {
+    if (params.tags?.length) {
+      const result = validateTags(params.tags);
+      if (!result.valid) {
+        throw new Error(
+          `Invalid tags: ${result.invalid.join(", ")}. Use one of: workflow, tooling, testing, style, architecture, security, performance, dependencies — or prefix with "custom:" (e.g., custom:infra).`
+        );
+      }
+    }
     const projectId = this.resolveProject(params.projectDir);
     const scopes: MemoryScope[] = params.scope ? [params.scope] : ["global", "project"];
     let results: Memory[] = [];
