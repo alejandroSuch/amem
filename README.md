@@ -7,13 +7,17 @@ Inspired by the [A-mem paper](https://arxiv.org/abs/2502.12110).
 ## Install
 
 ```bash
-git clone https://github.com/yourusername/amem.git
+git clone https://github.com/alejandroSuch/amem.git
 cd amem
 bun install
-bun build --compile src/index.ts --outfile amem
+bun run build
 ```
 
-## Register
+This produces a standalone `amem` binary in the project root — no runtime dependencies needed.
+
+## Configure
+
+### Claude Code
 
 Add to `~/.claude/settings.json` for global use:
 
@@ -21,7 +25,7 @@ Add to `~/.claude/settings.json` for global use:
 {
   "mcpServers": {
     "amem": {
-      "command": "/path/to/amem/amem"
+      "command": "/absolute/path/to/amem/amem"
     }
   }
 }
@@ -33,11 +37,31 @@ Or add a `.mcp.json` in your project root for per-project use:
 {
   "mcpServers": {
     "amem": {
-      "command": "/path/to/amem/amem"
+      "command": "/absolute/path/to/amem/amem"
     }
   }
 }
 ```
+
+### Other MCP hosts (Cursor, Windsurf, etc.)
+
+amem is a standard MCP server over stdio. Use whatever configuration your host requires, pointing to the compiled binary:
+
+```json
+{
+  "command": "/absolute/path/to/amem/amem",
+  "transport": "stdio"
+}
+```
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AMEM_GLOBAL_DIR` | `~/.claude/memory` | Override global memory directory |
+| `AMEM_PROJECT_DIR` | `~/.claude/projects/<id>/memory` | Override project memory directory |
+
+No environment variables are required — defaults match Claude Code's conventions.
 
 ## Memory format
 
@@ -152,14 +176,11 @@ Storage paths:
 - Full index rebuild on mutation — under 10ms for <1000 memories
 - Post-filtering by scope, type, tags after BM25 ranking
 
-## Development
+## Scripts
 
 ```bash
-# Run directly (Bun handles TypeScript natively)
-bun run src/index.ts
-
-# Rebuild binary
-bun build --compile src/index.ts --outfile amem
+bun run dev        # Run directly (Bun handles TypeScript natively)
+bun run build      # Compile standalone binary → ./amem
 ```
 
 ## Requirements

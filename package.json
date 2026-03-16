@@ -10,6 +10,11 @@
     "wink-bm25-text-search": "^2.0.0",
     "wink-nlp-utils": "^2.1.0"
   },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build --compile src/index.ts --outfile amem",
+    "build:install": "bun run build && echo 'Binary ready at ./amem'"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",

@@ -20,6 +20,12 @@ function resolveProjectId(cwd: string): string {
 }
 
 function memoryDir(scope: MemoryScope, projectId: string): string {
+  if (scope === "global" && process.env.AMEM_GLOBAL_DIR) {
+    return process.env.AMEM_GLOBAL_DIR;
+  }
+  if (scope === "project" && process.env.AMEM_PROJECT_DIR) {
+    return process.env.AMEM_PROJECT_DIR;
+  }
   const base = join(homedir(), ".claude");
   if (scope === "global") return join(base, "memory");
   return join(base, "projects", projectId, "memory");
