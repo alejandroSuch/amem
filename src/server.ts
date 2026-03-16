@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { MemoryService } from "./memory/service.js";
 import type { MemoryScope, MemoryMeta } from "./memory/types.js";
+import { log } from "./utils/logger.js";
 
 export function createServer(): McpServer {
   const service = new MemoryService();
@@ -23,12 +24,9 @@ export function createServer(): McpServer {
     },
     async (params) => {
       const results = await service.search(params);
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(results, null, 2),
-        }],
-      };
+      const text = JSON.stringify(results, null, 2);
+      log("memory_search", params, results);
+      return { content: [{ type: "text" as const, text }] };
     }
   );
 
@@ -48,12 +46,9 @@ export function createServer(): McpServer {
     },
     async (params) => {
       const memory = await service.add(params);
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(memory, null, 2),
-        }],
-      };
+      const text = JSON.stringify(memory, null, 2);
+      log("memory_add", params, memory);
+      return { content: [{ type: "text" as const, text }] };
     }
   );
 
@@ -74,12 +69,11 @@ export function createServer(): McpServer {
     },
     async (params) => {
       const memory = await service.update(params);
+      log("memory_update", params, memory ?? "not_found");
       if (!memory) {
         return { content: [{ type: "text" as const, text: "Memory not found" }], isError: true };
       }
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(memory, null, 2) }],
-      };
+      return { content: [{ type: "text" as const, text: JSON.stringify(memory, null, 2) }] };
     }
   );
 
@@ -92,6 +86,7 @@ export function createServer(): McpServer {
     },
     async ({ id, scope }) => {
       const ok = await service.delete(id, scope);
+      log("memory_delete", { id, scope }, ok ? "deleted" : "not_found");
       return {
         content: [{ type: "text" as const, text: ok ? "Deleted" : "Not found" }],
         isError: !ok,
@@ -108,12 +103,11 @@ export function createServer(): McpServer {
     },
     async ({ id, scope }) => {
       const result = await service.links(id, scope);
+      log("memory_links", { id, scope }, result ?? "not_found");
       if (!result) {
         return { content: [{ type: "text" as const, text: "Memory not found" }], isError: true };
       }
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
-      };
+      return { content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }] };
     }
   );
 
@@ -126,9 +120,8 @@ export function createServer(): McpServer {
     },
     async (params) => {
       const results = await service.list(params);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }],
-      };
+      log("memory_list", params, results);
+      return { content: [{ type: "text" as const, text: JSON.stringify(results, null, 2) }] };
     }
   );
 
