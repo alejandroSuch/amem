@@ -1,6 +1,6 @@
 import { homedir } from "os";
 import { execSync } from "child_process";
-import { join } from "path";
+import { dirname, join } from "path";
 import { v4 as uuid } from "uuid";
 import { validateTags } from "./types.js";
 import type { Memory, MemoryMeta, MemoryScope } from "./types.js";
@@ -9,12 +9,12 @@ import { SearchEngine } from "./search.js";
 
 function resolveProjectId(cwd: string): string {
   try {
-    const root = execSync("git rev-parse --show-toplevel", {
+    const commonDir = execSync("git rev-parse --path-format=absolute --git-common-dir", {
       cwd,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
-    return root.replace(/\//g, "-");
+    return dirname(commonDir).replace(/\//g, "-");
   } catch {
     return cwd.replace(/\//g, "-");
   }
